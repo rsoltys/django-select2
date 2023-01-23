@@ -267,7 +267,7 @@ class HeavySelect2Mixin:
             "data-ajax--url": self.get_url(),
             "data-ajax--cache": "true",
             "data-ajax--type": "GET",
-            "data-minimum-input-length": 2,
+            "data-minimum-input-length": 0,
         }
 
         if self.dependent_fields:
