@@ -4,12 +4,11 @@ from django.conf import settings  # NOQA
 
 __all__ = ("settings", "Select2Conf")
 
+from django.contrib.admin.widgets import SELECT2_TRANSLATIONS
+
 
 class Select2Conf(AppConf):
     """Settings for Django-Select2."""
-
-    LIB_VERSION = "4.0.12"
-    """Version of the Select2 library."""
 
     CACHE_BACKEND = "default"
     """
@@ -56,36 +55,32 @@ class Select2Conf(AppConf):
     It has set `select2_` as a default value, which you can change if needed.
     """
 
-    JS = "https://cdnjs.cloudflare.com/ajax/libs/select2/{version}/js/select2.min.js".format(
-        version=LIB_VERSION
-    )
+    JS = ["admin/js/vendor/select2/select2.full.min.js"]
     """
-    The URI for the Select2 JS file. By default this points to the Cloudflare CDN.
+    The URI for the Select2 JS file. By default this points to version shipped with Django.
 
     If you want to select the version of the JS library used, or want to serve it from
     the local 'static' resources, add a line to your settings.py like so::
 
-        SELECT2_JS = 'assets/js/select2.min.js'
+        SELECT2_JS = ['assets/js/select2.min.js']
 
     If you provide your own JS and would not like Django-Select2 to load any, change
     this setting to a blank string like so::
 
-        SELECT2_JS = ''
+        SELECT2_JS = []
 
     .. tip:: Change this setting to a local asset in your development environment to
         develop without an Internet connection.
     """
 
-    CSS = "https://cdnjs.cloudflare.com/ajax/libs/select2/{version}/css/select2.min.css".format(
-        version=LIB_VERSION
-    )
+    CSS = ["admin/css/vendor/select2/select2.min.css"]
     """
-    The URI for the Select2 CSS file. By default this points to the Cloudflare CDN.
+    The URI for the Select2 CSS file. By default this points to version shipped with Django.
 
     If you want to select the version of the library used, or want to serve it from
     the local 'static' resources, add a line to your settings.py like so::
 
-        SELECT2_CSS = 'assets/css/select2.css'
+        SELECT2_CSS = ['assets/css/select2.css']
 
     If you want to add more css (usually used in select2 themes), add a line
     in settings.py like this::
@@ -98,7 +93,7 @@ class Select2Conf(AppConf):
     If you provide your own CSS and would not like Django-Select2 to load any, change
     this setting to a blank string like so::
 
-        SELECT2_CSS = ''
+        SELECT2_CSS = []
 
     .. tip:: Change this setting to a local asset in your development environment to
         develop without an Internet connection.
@@ -112,13 +107,9 @@ class Select2Conf(AppConf):
     .. tip:: When using other themes, you may need use select2 css and theme css.
     """
 
-    I18N_PATH = (
-        "https://cdnjs.cloudflare.com/ajax/libs/select2/{version}/js/i18n".format(
-            version=LIB_VERSION
-        )
-    )
+    I18N_PATH = "admin/js/vendor/select2/i18n"
     """
-    The base URI for the Select2 i18n files. By default this points to the Cloudflare CDN.
+    The base URI for the Select2 i18n files. By default this points to version shipped with Django.
 
     If you want to select the version of the I18N library used, or want to serve it from
     the local 'static' resources, add a line to your settings.py like so::
@@ -129,55 +120,7 @@ class Select2Conf(AppConf):
         develop without an Internet connection.
     """
 
-    I18N_AVAILABLE_LANGUAGES = [
-        "ar",
-        "az",
-        "bg",
-        "ca",
-        "cs",
-        "da",
-        "de",
-        "el",
-        "en",
-        "es",
-        "et",
-        "eu",
-        "fa",
-        "fi",
-        "fr",
-        "gl",
-        "he",
-        "hi",
-        "hr",
-        "hu",
-        "id",
-        "is",
-        "it",
-        "ja",
-        "km",
-        "ko",
-        "lt",
-        "lv",
-        "mk",
-        "ms",
-        "nb",
-        "nl",
-        "pl",
-        "pt-BR",
-        "pt",
-        "ro",
-        "ru",
-        "sk",
-        "sr-Cyrl",
-        "sr",
-        "sv",
-        "th",
-        "tr",
-        "uk",
-        "vi",
-        "zh-CN",
-        "zh-TW",
-    ]
+    I18N_AVAILABLE_LANGUAGES = list(SELECT2_TRANSLATIONS.values())
     """
     List of available translations.
 
@@ -198,7 +141,7 @@ class Select2Conf(AppConf):
     ``settings.DJANGO_SELECT2_I18N`` refers to :attr:`.I18N_PATH`.
     """
 
-    JSON_ENCODER = 'django.core.serializers.json.DjangoJSONEncoder'
+    JSON_ENCODER = "django.core.serializers.json.DjangoJSONEncoder"
     """
     A :class:`JSONEncoder<json.JSONEncoder>` used to generate the API response for the model widgets.
 

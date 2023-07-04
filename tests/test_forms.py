@@ -2,8 +2,8 @@ import json
 import os
 from collections.abc import Iterable
 
+import django
 import pytest
-from django.contrib.admin.widgets import SELECT2_TRANSLATIONS
 from django.db.models import QuerySet
 from django.urls import reverse
 from django.utils import translation
@@ -14,14 +14,13 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
 from django_select2.cache import cache
-from django_select2.conf import settings
 from django_select2.forms import (
     HeavySelect2MultipleWidget,
     HeavySelect2Widget,
     ModelSelect2TagWidget,
     ModelSelect2Widget,
-    Select2Widget,
     Select2AdminMixin,
+    Select2Widget,
 )
 from tests.testapp import forms
 from tests.testapp.forms import (
@@ -48,11 +47,16 @@ class TestSelect2Mixin:
         assert "my-class" in widget.render("name", None)
         assert "django-select2" in widget.render("name", None)
 
-    @pytest.mark.parametrize("code,name", SELECT2_TRANSLATIONS.items())
-    def test_lang_attr(self, code, name):
-        translation.activate(code)
-        widget = self.widget_cls()
-        assert f'lang="{name}"' in widget.render("name", None)
+    def test_lang_attr(self):
+        with translation.override("de"):
+            widget = Select2Widget()
+            assert 'lang="de"' in widget.render("name", None)
+
+        # Regression test for #163
+        widget = Select2Widget()
+        assert widget.i18n_name == "en"
+        with translation.override("de"):
+            assert widget.i18n_name == "de"
 
     def test_allow_clear(self, db):
         required_field = self.form.fields["artist"]
@@ -82,12 +86,14 @@ class TestSelect2Mixin:
             "primary_genre", None
         )
 
+    @pytest.mark.selenium
     def test_no_js_error(self, db, live_server, driver):
         driver.get(live_server + self.url)
         with pytest.raises(NoSuchElementException):
             error = driver.find_element(By.XPATH, "//body[@JSError]")
             pytest.fail(error.get_attribute("JSError"))
 
+    @pytest.mark.selenium
     def test_selecting(self, db, live_server, driver):
         driver.get(live_server + self.url)
         with pytest.raises(NoSuchElementException):
@@ -129,28 +135,28 @@ class TestSelect2Mixin:
     def test_i18n(self):
         translation.activate("de")
         assert tuple(Select2Widget().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/i18n/de.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/vendor/select2/i18n/de.js",
             "django_select2/django_select2.js",
         )
 
         translation.activate("en")
         assert tuple(Select2Widget().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/i18n/en.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/vendor/select2/i18n/en.js",
             "django_select2/django_select2.js",
         )
 
         translation.activate("00")
         assert tuple(Select2Widget().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
+            "admin/js/vendor/select2/select2.full.min.js",
             "django_select2/django_select2.js",
         )
 
-        translation.activate("sr-cyrl")
+        translation.activate("sr-Cyrl")
         assert tuple(Select2Widget().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/i18n/sr-Cyrl.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/vendor/select2/i18n/sr-Cyrl.js",
             "django_select2/django_select2.js",
         )
 
@@ -158,15 +164,15 @@ class TestSelect2Mixin:
 
         translation.activate("zh-hans")
         assert tuple(Select2Widget().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/i18n/zh-CN.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/vendor/select2/i18n/zh-CN.js",
             "django_select2/django_select2.js",
         )
 
         translation.activate("zh-hant")
         assert tuple(Select2Widget().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/i18n/zh-TW.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/vendor/select2/i18n/zh-TW.js",
             "django_select2/django_select2.js",
         )
 
@@ -180,8 +186,8 @@ class TestSelect2AdminMixin:
     def test_media(self):
         translation.activate("en")
         assert tuple(Select2AdminMixin().media._js) == (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js",
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/i18n/en.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/vendor/select2/i18n/en.js",
             "django_select2/django_select2.js",
         )
 
@@ -189,6 +195,7 @@ class TestSelect2AdminMixin:
             "screen": [
                 "admin/css/vendor/select2/select2.min.css",
                 "admin/css/autocomplete.css",
+                "django_select2/django_select2.css",
             ]
         }
 
@@ -197,14 +204,8 @@ class TestSelect2MixinSettings:
     def test_default_media(self):
         sut = Select2Widget()
         result = sut.media.render()
-        assert (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/js/select2.min.js"
-            in result
-        )
-        assert (
-            f"https://cdnjs.cloudflare.com/ajax/libs/select2/{settings.SELECT2_LIB_VERSION}/css/select2.min.css"
-            in result
-        )
+        assert "admin/js/vendor/select2/select2.full.min.js" in result
+        assert "admin/css/vendor/select2/select2.min.css" in result
         assert "django_select2/django_select2.js" in result
 
     def test_js_setting(self, settings):
@@ -256,11 +257,10 @@ class TestHeavySelect2Mixin(TestSelect2Mixin):
             "name", None
         )
 
-    @pytest.mark.parametrize("code,name", SELECT2_TRANSLATIONS.items())
-    def test_lang_attr(self, code, name):
-        translation.activate(code)
-        widget = self.widget_cls(data_view="heavy_data_1")
-        assert f'lang="{name}"' in widget.render("name", None)
+    def test_lang_attr(self):
+        with translation.override("fr"):
+            widget = self.widget_cls(data_view="heavy_data_1")
+            assert 'lang="fr"' in widget.render("name", None)
 
     def test_selected_option(self, db):
         not_required_field = self.form.fields["primary_genre"]
@@ -270,7 +270,9 @@ class TestHeavySelect2Mixin(TestSelect2Mixin):
             in not_required_field.widget.render("primary_genre", 1)
             or '<option value="1" selected>One</option>'
             in not_required_field.widget.render("primary_genre", 1)
-        ), (not_required_field.widget.render("primary_genre", 1))
+        ), not_required_field.widget.render(
+            "primary_genre", 1
+        )
 
     def test_many_selected_option(self, db, genres):
         field = HeavySelect2MultipleWidgetForm().fields["genres"]
@@ -298,6 +300,7 @@ class TestHeavySelect2Mixin(TestSelect2Mixin):
         ), widget_output
         assert selected_option2 in widget_output or selected_option2a in widget_output
 
+    @pytest.mark.selenium
     def test_multiple_widgets(self, db, live_server, driver):
         driver.get(live_server + self.url)
         with pytest.raises(NoSuchElementException):
@@ -641,6 +644,7 @@ class TestHeavySelect2MultipleWidget:
         bool(os.environ.get("CI", False)),
         reason="https://bugs.chromium.org/p/chromedriver/issues/detail?id=1772",
     )
+    @pytest.mark.selenium
     def test_widgets_selected_after_validation_error(self, db, live_server, driver):
         driver.get(live_server + self.url)
         WebDriverWait(driver, 3).until(
@@ -678,6 +682,7 @@ class TestAddressChainedSelect2Widget:
     url = reverse("model_chained_select2_widget")
     form = forms.AddressChainedSelect2WidgetForm()
 
+    @pytest.mark.selenium
     def test_widgets_selected_after_validation_error(
         self, db, live_server, driver, countries, cities
     ):
@@ -757,6 +762,7 @@ class TestAddressChainedSelect2Widget:
         assert len(country_names_from_browser) != Country.objects.count()
         assert country_names_from_browser == country_names_from_db
 
+    @pytest.mark.selenium
     def test_dependent_fields_clear_after_change_parent(
         self, db, live_server, driver, countries, cities
     ):
@@ -817,3 +823,73 @@ class TestAddressChainedSelect2Widget:
             )
         )
         assert city2_container.text == ""
+
+
+@pytest.fixture(
+    name="widget",
+    params=[
+        (Select2Widget, {}),
+        (HeavySelect2Widget, {"data_view": "heavy_data_1"}),
+        (HeavySelect2MultipleWidget, {"data_view": "heavy_data_1"}),
+        (ModelSelect2Widget, {}),
+        (ModelSelect2TagWidget, {}),
+    ],
+    ids=lambda p: p[0],
+)
+def widget_fixture(request):
+    widget_class, widget_kwargs = request.param
+    return widget_class(**widget_kwargs)
+
+
+@pytest.mark.skipif(django.VERSION < (4, 1), reason="Only for Django 4.1+")
+@pytest.mark.parametrize(
+    "locale,expected",
+    [
+        ("fr-FR", "fr"),
+        # Some locales with a country code are natively supported by select2's i18n
+        ("pt-BR", "pt-BR"),
+        ("sr-Cyrl", "sr-Cyrl"),
+    ],
+    ids=repr,
+)
+def test_i18n_name_property_with_country_code_in_locale(widget, locale, expected):
+    """Test we fall back to the language code if the locale contain an unsupported country code."""
+    with translation.override(locale):
+        assert widget.i18n_name == expected
+
+
+@pytest.mark.skipif(django.VERSION < (4, 1), reason="Only for Django 4.1+")
+def test_i18n_media_js_with_country_code_in_locale(widget):
+    translation.activate("fr-FR")
+    assert tuple(widget.media._js) == (
+        "admin/js/vendor/select2/select2.full.min.js",
+        "admin/js/vendor/select2/i18n/fr.js",
+        "django_select2/django_select2.js",
+    )
+
+
+@pytest.mark.skipif(django.VERSION >= (4, 1), reason="Only for Django 4.0 and previous")
+@pytest.mark.parametrize(
+    "locale,expected",
+    [
+        ("fr-FR", None),
+        # Some locales with a country code are natively supported by select2's i18n
+        ("pt-BR", "pt-BR"),
+        ("sr-Cyrl", "sr-Cyrl"),
+    ],
+)
+def test_i18n_name_property_with_country_code_in_locale_for_older_django(
+    widget, locale, expected
+):
+    """No fallback for locale with an unsupported country code."""
+    with translation.override(locale):
+        assert widget.i18n_name == expected
+
+
+@pytest.mark.skipif(django.VERSION >= (4, 1), reason="Only for Django 4.0 and previous")
+def test_i18n_media_js_with_country_code_in_locale_for_older_django(widget):
+    translation.activate("fr-FR")
+    assert tuple(widget.media._js) == (
+        "admin/js/vendor/select2/select2.full.min.js",
+        "django_select2/django_select2.js",
+    )

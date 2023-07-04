@@ -2,8 +2,8 @@
 from django.core import signing
 from django.core.signing import BadSignature
 from django.http import Http404, JsonResponse
-from django.views.generic.list import BaseListView
 from django.utils.module_loading import import_string
+from django.views.generic.list import BaseListView
 
 from .cache import cache
 from .conf import settings
@@ -45,7 +45,7 @@ class AutoResponseView(BaseListView):
                 ],
                 "more": context["page_obj"].has_next(),
             },
-            encoder=import_string(settings.SELECT2_JSON_ENCODER)
+            encoder=import_string(settings.SELECT2_JSON_ENCODER),
         )
 
     def get_queryset(self):
@@ -92,7 +92,7 @@ class AutoResponseView(BaseListView):
         except BadSignature:
             raise Http404('Invalid "field_id".')
         else:
-            cache_key = "%s%s" % (settings.SELECT2_CACHE_PREFIX, key)
+            cache_key = f"{settings.SELECT2_CACHE_PREFIX}{key}"
             widget_dict = cache.get(cache_key)
             if widget_dict is None:
                 raise Http404("field_id not found")

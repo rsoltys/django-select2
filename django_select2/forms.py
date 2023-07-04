@@ -16,7 +16,7 @@ Widgets are generally of two types:
     have to be pre-rendered onto the page
     and JavaScript would be used to search
     through them. Said that, they are also one
-    the most easiest to use. They are a
+    the easiest to use. They are a
     drop-in-replacement for Django's default
     select widgets.
 
@@ -54,12 +54,11 @@ from pickle import PicklingError  # nosec
 
 import django
 from django import forms
-from django.contrib.admin.widgets import SELECT2_TRANSLATIONS, AutocompleteMixin
+from django.contrib.admin.widgets import AutocompleteMixin
 from django.core import signing
 from django.db.models import Q
 from django.forms.models import ModelChoiceIterator
 from django.urls import reverse
-from django.utils.translation import get_language
 
 from .cache import cache
 from .conf import settings
@@ -86,9 +85,18 @@ class Select2Mixin:
 
     empty_label = ""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.i18n_name = SELECT2_TRANSLATIONS.get(get_language())
+    @property
+    def i18n_name(self):
+        """Name of the i18n file for the current language."""
+        if django.VERSION < (4, 1):
+            from django.contrib.admin.widgets import SELECT2_TRANSLATIONS
+            from django.utils.translation import get_language
+
+            return SELECT2_TRANSLATIONS.get(get_language())
+        else:
+            from django.contrib.admin.widgets import get_select2_language
+
+            return get_select2_language()
 
     def build_attrs(self, base_attrs, extra_attrs=None):
         """Add select2 data attributes."""
@@ -126,9 +134,11 @@ class Select2Mixin:
         .. Note:: For more information visit
             https://docs.djangoproject.com/en/stable/topics/forms/media/#media-as-a-dynamic-property
         """
-        select2_js = [settings.SELECT2_JS] if settings.SELECT2_JS else []
+        select2_js = settings.SELECT2_JS if settings.SELECT2_JS else []
         select2_css = settings.SELECT2_CSS if settings.SELECT2_CSS else []
 
+        if isinstance(select2_js, str):
+            select2_js = [select2_js]
         if isinstance(select2_css, str):
             select2_css = [select2_css]
 
@@ -145,14 +155,15 @@ class Select2Mixin:
 class Select2AdminMixin:
     """Select2 mixin that uses Django's own select template."""
 
-    css_class_name = "admin-autocomplete"
     theme = "admin-autocomplete"
 
     @property
     def media(self):
+        css = {**AutocompleteMixin(None, None).media._css}
+        css["screen"].append("django_select2/django_select2.css")
         return forms.Media(
             js=Select2Mixin().media._js,
-            css=AutocompleteMixin(None, None).media._css,
+            css=css,
         )
 
 
@@ -225,6 +236,8 @@ class HeavySelect2Mixin:
     """Mixin that adds select2's AJAX options and registers itself on Django's cache."""
 
     dependent_fields = {}
+    data_view = None
+    data_url = None
 
     def __init__(self, attrs=None, choices=(), **kwargs):
         """
@@ -245,14 +258,14 @@ class HeavySelect2Mixin:
 
         self.uuid = str(uuid.uuid4())
         self.field_id = signing.dumps(self.uuid)
-        self.data_view = kwargs.pop("data_view", None)
-        self.data_url = kwargs.pop("data_url", None)
+        self.data_view = kwargs.pop("data_view", self.data_view)
+        self.data_url = kwargs.pop("data_url", self.data_url)
 
         dependent_fields = kwargs.pop("dependent_fields", None)
         if dependent_fields is not None:
             self.dependent_fields = dict(dependent_fields)
         if not (self.data_view or self.data_url):
-            raise ValueError('You must ether specify "data_view" or "data_url".')
+            raise ValueError('You must either specify "data_view" or "data_url".')
         self.userGetValTextFuncName = kwargs.pop("userGetValTextFuncName", "null")
 
     def get_url(self):
@@ -291,7 +304,7 @@ class HeavySelect2Mixin:
         return output
 
     def _get_cache_key(self):
-        return "%s%s" % (settings.SELECT2_CACHE_PREFIX, self.uuid)
+        return f"{settings.SELECT2_CACHE_PREFIX}{self.uuid}"
 
     def set_to_cache(self):
         """
@@ -598,7 +611,7 @@ class ModelSelect2TagWidget(ModelSelect2Mixin, HeavySelect2TagWidget):
                 # You need to implement this method yourself, to ensure proper object creation.
                 pks = self.queryset.filter(**{'pk__in': list(values)}).values_list('pk', flat=True)
                 pks = set(map(str, pks))
-                cleaned_values = list(values)
+                cleaned_values = list(pks)
                 for val in values - pks:
                     cleaned_values.append(self.queryset.create(title=val).pk)
                 return cleaned_values
